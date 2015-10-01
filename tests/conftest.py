@@ -1,3 +1,4 @@
+import base64
 import pytest
 
 from rootnroll import RootnRollClient
@@ -45,3 +46,12 @@ def server(client, image_id):
     server = client.create_server(image_id)
     yield server
     client.destroy_server(server)
+
+
+@pytest.fixture
+def sandbox(client):
+    files = [{'name': 'file.txt',
+              'content': base64.b64encode(b"42\n").decode()}]
+    limits = {'cputime': 1, 'realtime': 2, 'memory': 32}
+    return client.create_sandbox('linux-bootstrap', 'cat /sandbox/file.txt',
+                                 files=files, limits=limits)

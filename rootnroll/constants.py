@@ -8,6 +8,15 @@ class ServerStatus(object):
     ERROR = 'ERROR'
 
 
+class SandboxStatus(object):
+    PENDING = 'pending'
+    STARTED = 'started'
+    SUCCESS = 'success'
+    FAILURE = 'failure'
+
+    terminated_list = [SUCCESS, FAILURE]
+
+
 class CheckerJobStatus(object):
     PENDING = 'pending'
     RUNNING = 'running'

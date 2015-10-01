@@ -84,3 +84,26 @@ class RootnRollClient(object):
     def destroy_server(self, server):
         r = self._delete(self._url('/servers/{0}', server['id']))
         r.raise_for_status()
+
+    def create_sandbox(self, profile, command=None, files=None, limits=None):
+        sandbox_body = {
+            'profile': profile,
+            'command': command,
+            "files": files or [],
+            "limits": limits or {},
+        }
+        r = self._post(self._url('/sandboxes'), json=sandbox_body)
+        return self._result(r)
+
+    def get_sandbox(self, sandbox_id):
+        return self._result(self._get(self._url('/sandboxes/{0}', sandbox_id)))
+
+    def wait_sandbox_terminated(self, sandbox, timeout=60):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            sandbox = self.get_sandbox(sandbox['id'])
+            if (sandbox['status'] in constants.SandboxStatus.terminated_list or
+                    sandbox['timeout']):
+                return sandbox
+            time.sleep(0.5)
+        raise TimeoutError("Timed out waiting for sandbox to be terminated")
