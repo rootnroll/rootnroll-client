@@ -4,7 +4,7 @@ import uuid
 import requests
 import structlog
 
-from . import constants
+from . import constants as c
 
 
 logger = structlog.get_logger()
@@ -15,8 +15,8 @@ class RootnRollException(Exception):
 
 
 class RootnRollClient(object):
-    def __init__(self, username, password, api_url=constants.DEFAULT_API_URL,
-                 timeout=constants.DEFAULT_TIMEOUT_SECONDS):
+    def __init__(self, username, password, api_url=c.DEFAULT_API_URL,
+                 timeout=c.DEFAULT_TIMEOUT_SECONDS):
         self.api_url = api_url
         self.timeout = timeout
         self.session = requests.Session()
@@ -75,7 +75,7 @@ class RootnRollClient(object):
             server = self.get_server(server['id'])
             if server['status'] == until_status:
                 return server
-            if server['status'] == constants.ServerStatus.ERROR:
+            if server['status'] == c.ServerStatus.ERROR:
                 raise RootnRollException("Failed waiting for server status")
             time.sleep(1)
         else:
@@ -98,12 +98,32 @@ class RootnRollClient(object):
     def get_sandbox(self, sandbox_id):
         return self._result(self._get(self._url('/sandboxes/{0}', sandbox_id)))
 
-    def wait_sandbox_terminated(self, sandbox, timeout=60):
+    def wait_sandbox_terminated(self, sandbox, timeout=c.DEFAULT_WAIT_TIMEOUT):
         start_time = time.time()
         while time.time() - start_time < timeout:
             sandbox = self.get_sandbox(sandbox['id'])
-            if (sandbox['status'] in constants.SandboxStatus.terminated_list or
+            if (sandbox['status'] in c.SandboxStatus.terminated_set or
                     sandbox['timeout']):
                 return sandbox
             time.sleep(0.5)
         raise TimeoutError("Timed out waiting for sandbox to be terminated")
+
+    def create_checker_job(self, server, test_scenario):
+        job_body = {
+            'server': server['id'],
+            'test_scenario': test_scenario,
+        }
+        r = self._post(self._url('/checker-jobs'), json=job_body)
+        return self._result(r)
+
+    def get_checker_job(self, job_id):
+        return self._result(self._get(self._url('/checker-jobs/{0}', job_id)))
+
+    def wait_checker_job_ready(self, job, timeout=c.DEFAULT_WAIT_TIMEOUT):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            job = self.get_checker_job(job['id'])
+            if job['status'] in c.CheckerJobStatus.ready_set:
+                return job
+            time.sleep(0.5)
+        raise TimeoutError("Timed out waiting for checker job readiness")

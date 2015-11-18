@@ -1,5 +1,6 @@
 DEFAULT_API_URL = 'https://au.rootnroll.com/api'
 DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_WAIT_TIMEOUT = 60
 
 
 class ServerStatus(object):
@@ -14,7 +15,7 @@ class SandboxStatus(object):
     SUCCESS = 'success'
     FAILURE = 'failure'
 
-    terminated_list = [SUCCESS, FAILURE]
+    terminated_set = {SUCCESS, FAILURE}
 
 
 class CheckerJobStatus(object):
@@ -23,6 +24,7 @@ class CheckerJobStatus(object):
     COMPLETED = 'completed'
     FAILED = 'failed'
 
+    ready_set = {COMPLETED, FAILED}
 
 class CheckerJobResult(object):
     PASSED = 'passed'

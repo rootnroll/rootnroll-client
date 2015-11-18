@@ -1,6 +1,8 @@
 import base64
+import textwrap
 
-from rootnroll.constants import ServerStatus, SandboxStatus
+from rootnroll.constants import (CheckerJobStatus, CheckerJobResult,
+                                 ServerStatus, SandboxStatus)
 
 
 def test_create_destroy_server(client, image_id):
@@ -60,3 +62,43 @@ def test_wait_sandbox_terminated(client, sandbox):
     assert sandbox['status'] == SandboxStatus.SUCCESS
     assert sandbox['exit_code'] == 0
     assert base64.b64decode(sandbox['stdout']) == b"42\n"
+
+
+def test_create_get_checker_job(client, server_perm):
+    server = client.wait_server_status(server_perm, ServerStatus.ACTIVE,
+                                       timeout=30)
+    test_scenario = textwrap.dedent("""
+        def test_true():
+            assert True
+        """).strip()
+
+    job = client.create_checker_job(server, test_scenario)
+
+    assert job['id']
+    assert job['server'] == server['id']
+    assert job['test_scenario'] == test_scenario
+    assert job['status'] == CheckerJobStatus.RUNNING
+    assert job['finished_at'] is None
+    assert not job['result']
+
+    job = client.get_checker_job(job['id'])
+
+    assert job['id']
+    assert job['server'] == server['id']
+    assert job['test_scenario'] == test_scenario
+    assert job['status'] in [CheckerJobStatus.RUNNING,
+                             CheckerJobStatus.COMPLETED]
+
+
+def test_wait_checker_job_ready(client, server_perm):
+    test_scenario = textwrap.dedent("""
+        def test_true():
+            assert True
+        """).strip()
+    job = client.create_checker_job(server_perm, test_scenario)
+
+    job = client.wait_checker_job_ready(job, timeout=30)
+
+    assert job['status'] == CheckerJobStatus.COMPLETED
+    assert job['result'] == CheckerJobResult.PASSED
+    assert job['finished_at']
