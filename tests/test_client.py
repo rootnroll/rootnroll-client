@@ -23,12 +23,32 @@ def test_create_destroy_server(client, image_id):
 
 
 def test_wait_server_status(client, server):
-    active_server = client.wait_server_status(server, ServerStatus.ACTIVE,
-                                              timeout=30)
+    active_server = client.wait_server_status(server, ServerStatus.ACTIVE)
     server = client.get_server(server['id'])
 
     assert server['status'] == ServerStatus.ACTIVE
     assert active_server == server
+
+
+def test_create_destroy_terminal(client, server_perm):
+    server = client.wait_server_status(server_perm, ServerStatus.ACTIVE)
+
+    terminal = client.create_terminal(server)
+    print("### TERMINAL:", terminal)
+
+    assert terminal['id']
+    assert terminal['server_id'] == server['id']
+    assert terminal['config']['kaylee_url']
+
+    terminal = client.get_terminal(terminal['id'])
+
+    assert terminal['id']
+    assert terminal['server_id'] == server['id']
+    assert terminal['config']['kaylee_url']
+
+    client.destroy_terminal(terminal)
+
+    assert client.get_terminal(terminal['id']) is None
 
 
 def test_create_sandbox(client):

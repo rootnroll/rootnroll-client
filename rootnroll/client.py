@@ -70,6 +70,7 @@ class RootnRollClient(object):
 
     def wait_server_status(self, server, until_status, timeout=180):
         """Wait for server status to become `until_status`."""
+
         start_time = time.time()
         while time.time() - start_time < timeout:
             server = self.get_server(server['id'])
@@ -83,6 +84,23 @@ class RootnRollClient(object):
 
     def destroy_server(self, server):
         r = self._delete(self._url('/servers/{0}', server['id']))
+        r.raise_for_status()
+
+    def create_terminal(self, server):
+        """Create a terminal for the given ACTIVE server."""
+
+        terminal_body = {
+            'server_id': server['id'],
+        }
+        r = self._post(self._url('/terminals'), json=terminal_body)
+        return self._result(r)
+
+    def get_terminal(self, terminal_id):
+        return self._result(
+            self._get(self._url('/terminals/{0}', terminal_id)))
+
+    def destroy_terminal(self, terminal):
+        r = self._delete(self._url('/terminals/{0}', terminal['id']))
         r.raise_for_status()
 
     def create_sandbox(self, profile, command=None, files=None, limits=None):
