@@ -1,4 +1,5 @@
 import time
+import urllib.parse
 import uuid
 
 import requests
@@ -23,7 +24,8 @@ class RootnRollClient(object):
         self.session.auth = (username, password)
 
     def _url(self, path, *args, **kwargs):
-        return (self.api_url + path).format(*args, **kwargs)
+        query_str = '?' + urllib.parse.urlencode(kwargs) if kwargs else ''
+        return (self.api_url + path + query_str).format(*args)
 
     def _request(self, method, url, **kwargs):
         log = logger.bind(request_id=str(uuid.uuid4())[:8])
@@ -67,6 +69,14 @@ class RootnRollClient(object):
 
     def get_server(self, server_id):
         return self._result(self._get(self._url('/servers/{0}', server_id)))
+
+    def list_servers(self, page=1):
+        """Get a paginated list of servers.
+
+        :param page: page number (default: 1)
+
+        """
+        return self._result(self._get(self._url('/servers', page=page)))
 
     def wait_server_status(self, server, until_status, timeout=180):
         """Wait for server status to become `until_status`."""

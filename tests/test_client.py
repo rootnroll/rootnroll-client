@@ -22,6 +22,30 @@ def test_create_destroy_server(client, image_id):
     assert client.get_server(server_id) is None
 
 
+def test_list_servers_first_page(client):
+    servers = client.list_servers()
+
+    assert servers['count'] > 0
+    assert servers['previous'] is None
+    assert 'page=2' in servers['next']
+    server = servers['results'][0]
+    assert server['id']
+    assert 'status' in server
+
+
+def test_list_servers_second_page(client):
+    servers = client.list_servers(page=2)
+
+    assert servers['count'] > 0
+    assert servers['previous']
+    assert 'page=3' in servers['next']
+    assert servers['results']
+
+
+def test_list_servers_nonexistent_page(client):
+    assert client.list_servers(page=100500) is None
+
+
 def test_wait_server_status(client, server):
     active_server = client.wait_server_status(server, ServerStatus.ACTIVE)
     server = client.get_server(server['id'])
