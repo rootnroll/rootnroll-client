@@ -4,9 +4,10 @@ import uuid
 
 import requests
 import structlog
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from . import constants as c
-
 
 logger = structlog.get_logger()
 
@@ -17,24 +18,35 @@ class RootnRollException(Exception):
 
 class RootnRollClient(object):
     def __init__(self, username, password, api_url=c.DEFAULT_API_URL,
-                 timeout=c.DEFAULT_TIMEOUT_SECONDS):
+                 timeout=c.DEFAULT_TIMEOUT_SECONDS,
+                 max_retries=c.DEFAULT_MAX_RETRIES):
         self.api_url = api_url
         self.timeout = timeout
         self.session = requests.Session()
         self.session.auth = (username, password)
+        retries = Retry(total=max_retries,
+                        method_whitelist=False,
+                        status_forcelist=[502],
+                        backoff_factor=c.BACKOFF_FACTOR,
+                        raise_on_status=False)
+        http_adapter = HTTPAdapter(max_retries=retries)
+        self.session.mount('http://', http_adapter)
+        self.session.mount('https://', http_adapter)
 
     def _url(self, path, *args, **kwargs):
         query_str = '?' + urllib.parse.urlencode(kwargs) if kwargs else ''
         return (self.api_url + path + query_str).format(*args)
 
     def _request(self, method, url, **kwargs):
-        log = logger.bind(request_id=str(uuid.uuid4())[:8])
         kwargs.setdefault('timeout', self.timeout)
-        log.debug("Sending API request", method=method.upper(), url=url,
-                  data=kwargs.get('json'), timeout=kwargs.get('timeout'))
+        log = logger.bind(request_id=str(uuid.uuid4())[:8],
+                          method=method.upper(), url=url,
+                          data=kwargs.get('json'),
+                          timeout=kwargs.get('timeout'))
+        log.debug("Sending API request")
         r = self.session.request(method, url, **kwargs)
         if not r:
-            log.info("Received unsuccessful API response",
+            log.info("Received API response",
                      status_code=r.status_code, data=r.content)
         else:
             log.debug("Received API response",
@@ -59,6 +71,9 @@ class RootnRollClient(object):
         response.raise_for_status()
         return response.json()
 
+    def get_image(self, image_id):
+        return self._result(self._get(self._url('/images/{0}', image_id)))
+
     def create_server(self, image_id, memory=64):
         server_body = {
             'image_id': image_id,
@@ -67,7 +82,8 @@ class RootnRollClient(object):
         r = self._post(self._url('/servers'), json=server_body)
         return self._result(r)
 
-    def get_server(self, server_id):
+    def get_server(self, server):
+        server_id = server['id'] if isinstance(server, dict) else server
         return self._result(self._get(self._url('/servers/{0}', server_id)))
 
     def list_servers(self, page=1):
@@ -93,7 +109,8 @@ class RootnRollClient(object):
             raise TimeoutError("Timed out waiting for server status")
 
     def destroy_server(self, server):
-        r = self._delete(self._url('/servers/{0}', server['id']))
+        server_id = server['id'] if isinstance(server, dict) else server
+        r = self._delete(self._url('/servers/{0}', server_id))
         r.raise_for_status()
 
     def create_terminal(self, server):

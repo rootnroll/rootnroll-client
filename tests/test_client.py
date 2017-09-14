@@ -5,41 +5,47 @@ from rootnroll.constants import (CheckerJobStatus, CheckerJobResult,
                                  ServerStatus, SandboxStatus)
 
 
+def test_get_image(client, image_id):
+    image = client.get_image(image_id)
+
+    assert image['id'] == image_id
+    assert image['name']
+
+
 def test_create_destroy_server(client, image_id):
     server = client.create_server(image_id)
 
     assert server['id']
-    assert server['status'] in [ServerStatus.BUILD, ServerStatus.ACTIVE]
+    assert server['status'] in [ServerStatus.CREATING, ServerStatus.STARTING,
+                                ServerStatus.ACTIVE]
 
     server_id = server['id']
     server = client.get_server(server_id)
 
     assert server['id']
-    assert server['status'] in [ServerStatus.BUILD, ServerStatus.ACTIVE]
+    assert server['status'] in [ServerStatus.CREATING, ServerStatus.STARTING,
+                                ServerStatus.ACTIVE]
 
     client.destroy_server(server)
 
     assert client.get_server(server_id) is None
 
 
-def test_list_servers_first_page(client):
-    servers = client.list_servers()
+def test_list_servers_first_page(client, image_id):
+    created_servers = [client.create_server(image_id) for _ in range(5)]
 
-    assert servers['count'] > 0
-    assert servers['previous'] is None
-    assert 'page=2' in servers['next']
-    server = servers['results'][0]
-    assert server['id']
-    assert 'status' in server
+    try:
+        servers = client.list_servers()
 
-
-def test_list_servers_second_page(client):
-    servers = client.list_servers(page=2)
-
-    assert servers['count'] > 0
-    assert servers['previous']
-    assert 'page=3' in servers['next']
-    assert servers['results']
+        assert servers['count'] >= 5
+        assert servers['previous'] is None
+        assert 'next' in servers
+        server = servers['results'][0]
+        assert server['id']
+        assert 'status' in server
+    finally:
+        for server in created_servers:
+            client.destroy_server(server)
 
 
 def test_list_servers_nonexistent_page(client):
@@ -58,7 +64,6 @@ def test_create_destroy_terminal(client, server_perm):
     server = client.wait_server_status(server_perm, ServerStatus.ACTIVE)
 
     terminal = client.create_terminal(server)
-    print("### TERMINAL:", terminal)
 
     assert terminal['id']
     assert terminal['server_id'] == server['id']

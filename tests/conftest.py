@@ -1,4 +1,5 @@
 import base64
+
 import pytest
 
 from rootnroll import RootnRollClient
@@ -38,7 +39,7 @@ def client(username, password, api_url):
 
 @pytest.fixture(scope='session')
 def image_id():
-    return 3  # Ubuntu 14.04 on au.rootnroll.com
+    return 3  # stepic/challenge-base on rootnroll.com
 
 
 @pytest.yield_fixture
