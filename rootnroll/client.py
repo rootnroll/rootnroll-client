@@ -111,7 +111,8 @@ class RootnRollClient(object):
     def destroy_server(self, server):
         server_id = server['id'] if isinstance(server, dict) else server
         r = self._delete(self._url('/servers/{0}', server_id))
-        r.raise_for_status()
+        if r.status_code != 404:
+            r.raise_for_status()
 
     def create_terminal(self, server):
         """Create a terminal for the given ACTIVE server."""

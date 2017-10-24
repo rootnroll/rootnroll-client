@@ -27,6 +27,8 @@ def test_create_destroy_server(client, image_id):
                                 ServerStatus.ACTIVE]
 
     client.destroy_server(server)
+    # Do not raise if not found
+    client.destroy_server(server)
 
     assert client.get_server(server_id) is None
 
